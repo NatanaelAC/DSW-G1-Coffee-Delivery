@@ -4,28 +4,43 @@ import { useTheme } from 'styled-components'
 import { CoffeeCard } from '../../components/CoffeeCard'
 
 import { CoffeeList, Heading, Hero, HeroContent, Info } from './styles'
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { api } from '../../serves/api';
 
 interface Coffee {
   id: string;
   title: string;
-  description: string;
+  description: string ;
   tags: string[];
   price: number;
   image: string;
   quantity: number;
 };
-
+//const [userData, setUserData] = useState<GitHubUser | null>(null);
+//const [issues, setIssues] = useState<GitHubIssue[]>([]);
 export function Home() {
   const theme = useTheme();
+  const[data,setuserdata]= useState<Coffee | null>(null);
+  const [coffees, setCoffes] = useState<Coffee[]>([]);//<GitHubUser | null>(null);
 
   useEffect(() => {
-    // request para a API para pegar os cafés
-    // e setar no estado
+    async function fechCoffe() {
+      try {
+        const response = await api.get<Coffee>('http://localhost:3000/coffees');
+        setuserdata(response.data);
+
+      } catch (error) {
+        console.error("Erro ao buscar o café")
+      }
+
+    }
+
+
+fechCoffe();
   }, []);
 
+ 
 
-  
   function incrementQuantity(id: string) {
     // Aqui você pode fazer a lógica para incrementar a quantidade do café
   }
@@ -101,21 +116,23 @@ export function Home() {
         <h2>Nossos cafés</h2>
 
         <div>
-        {[1,2,3].map((coffee) => (
-            <CoffeeCard key={coffee} coffee={{
-              description: 'Café expresso tradicional com espuma cremosa',
-              id: '1',
-              image: "/images/coffees/expresso-cremoso.png",
-              price: 9.90,
-              tags: ['Tradicional', 'Comum'],
-              title: 'Expresso Tradicional',
-              quantity: 1,
+          {coffees.map((coffee) => (
+            <CoffeeCard  coffee={{
+              description:coffee.description,
+              id: coffee.id,
+              image: coffee.image,
+              price: coffee.price,
+              tags: coffee.tags,
+              title: coffee.title,
+              quantity: coffee.quantity
             }}
-            incrementQuantity={incrementQuantity}
-            decrementQuantity={decrementQuantity}
+            
+              incrementQuantity={incrementQuantity}
+              decrementQuantity={decrementQuantity}
             />
-          ))}
+          ))} 
         </div>
+        
       </CoffeeList>
     </div>
   )
