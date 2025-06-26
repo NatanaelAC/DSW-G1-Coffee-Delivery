@@ -1,66 +1,39 @@
-import { Coffee, Package, ShoppingCart, Timer } from '@phosphor-icons/react'
-import { useTheme } from 'styled-components'
+import { Coffee, Package, ShoppingCart, Timer } from '@phosphor-icons/react';
+import { useTheme } from 'styled-components';
 
-import { Card } from '../../components/Card'
+import { Card } from '../../components/Card';
 
-import { api } from '../../servers/api';
-import { CoffeeList, Heading, Hero, HeroContent, Info } from './styles'
+import { api } from '../../servers/api'; // Verifique se o caminho é 'servers' ou 'serves'
+
+import { CoffeeList, Heading, Hero, HeroContent, Info } from './styles';
 import { useEffect, useState } from 'react';
-<<<<<<< HEAD
-=======
-import { api } from '../../serves/api';
->>>>>>> dd7d6f4a7eae6451bd6ecb9268c45959f5e72b21
 
-interface Coffee {
+
+interface CoffeeType {
   id: string;
-  title: string;
-  description: string ;
-  tags: string[];
-  price: number;
-  image: string;
-  quantity: number;
-  favorite: boolean;
+  nome: string;
+  descricao: string;
+  tag: string[];
+  preco: string;
+  image?: string; // Tornando opcional, caso sua API não retorne
 };
-//const [userData, setUserData] = useState<GitHubUser | null>(null);
-//const [issues, setIssues] = useState<GitHubIssue[]>([]);
+
+
 export function Home() {
   const theme = useTheme();
-<<<<<<< HEAD
-  const [coffees, setCoffees] = useState<Coffee[]>([]);
-  
+  const [coffees, setCoffees] = useState<CoffeeType[]>([]);
+
   useEffect(() => {
     async function fetchCoffees() {
-      const response = await api('/coffees');
-      setCoffees(response.data);
-=======
-  const[data,setuserdata]= useState<Coffee | null>(null);
-  const [coffees, setCoffes] = useState<Coffee[]>([]);//<GitHubUser | null>(null);
-
-  useEffect(() => {
-    async function fechCoffe() {
       try {
-        const response = await api.get<Coffee>('http://localhost:3000/coffees');
-        setuserdata(response.data);
-
+        const response = await api.get<CoffeeType[]>('http://localhost:3000/coffees');
+        setCoffees(response.data);
+        console.log({ coffees: response.data });
       } catch (error) {
-        console.error("Erro ao buscar o café")
+        console.error("Erro ao buscar os cafés:", error);
       }
-
     }
 
-
-fechCoffe();
-  }, []);
-
- 
-
-  function incrementQuantity(id: string) {
-    // Aqui você pode fazer a lógica para incrementar a quantidade do café
-  }
->>>>>>> dd7d6f4a7eae6451bd6ecb9268c45959f5e72b21
-
-      console.log({coffees: response.data});
-    }
     fetchCoffees();
   }, []);
 
@@ -132,28 +105,21 @@ fechCoffe();
 
         <div>
           {coffees.map((coffee) => (
-<<<<<<< HEAD
-            <Card key={coffee.id} coffee={coffee} />
-          ))}
-=======
-            <CoffeeCard  coffee={{
-              description:coffee.description,
-              id: coffee.id,
-              image: coffee.image,
-              price: coffee.price,
-              tags: coffee.tags,
-              title: coffee.title,
-              quantity: coffee.quantity
-            }}
-            
-              incrementQuantity={incrementQuantity}
-              decrementQuantity={decrementQuantity}
+            <Card
+              key={coffee.id}
+              coffee={{
+                id: coffee.id,
+                title: coffee.nome,
+                description: coffee.descricao,
+                tags: coffee.tag,
+                price: parseFloat(coffee.preco),
+                image: coffee.image || `/src/assets/coffees/${coffee.id}.png`,
+              }}
             />
-          ))} 
->>>>>>> dd7d6f4a7eae6451bd6ecb9268c45959f5e72b21
+          ))}
         </div>
-        
+
       </CoffeeList>
     </div>
-  )
+  );
 }

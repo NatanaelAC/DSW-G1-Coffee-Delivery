@@ -23,7 +23,7 @@ type Props = {
     tags: string[]
     // ATENÇÃO: Aqui definimos que 'price' virá como string do backend
     // Mude de 'number' para 'string' para corresponder ao backend
-    price: string 
+    price: number 
     image: string
   }
 }
