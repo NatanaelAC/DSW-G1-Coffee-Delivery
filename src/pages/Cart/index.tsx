@@ -1,7 +1,7 @@
-import { Fragment } from 'react'
-import { SubmitHandler, useForm } from 'react-hook-form'
-import { z } from 'zod'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { Fragment, useEffect, useState } from 'react';
+import { SubmitHandler, useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Bank,
   CreditCard,
@@ -9,13 +9,14 @@ import {
   MapPin,
   Money,
   Trash,
-} from '@phosphor-icons/react'
+} from '@phosphor-icons/react';
 
-import { coffees } from '../../../coffee_bd.json'
-import { useCart } from '../../hooks/useCart'
-import { QuantityInput } from '../../components/Form/QuantityInput'
-import { TextInput } from '../../components/Form/TextInput'
-import { Radio } from '../../components/Form/Radio'
+import { useCart } from '../../hooks/useCart';
+import { QuantityInput } from '../../components/Form/QuantityInput';
+import { TextInput } from '../../components/Form/TextInput';
+import { Radio } from '../../components/Form/Radio';
+import { getCoffeeById } from '../../services/coffeeApi';
+
 import {
   AddressContainer,
   AddressForm,
@@ -31,18 +32,34 @@ import {
   PaymentErrorMessage,
   PaymentHeading,
   PaymentOptions,
-} from './styles'
+} from './styles';
 
 type FormInputs = {
-  cep: number
-  street: string
-  number: string
-  fullAddress: string
-  neighborhood: string
-  city: string
-  state: string
-  paymentMethod: 'credit' | 'debit' | 'cash'
-}
+  cep: number;
+  street: string;
+  number: string;
+  fullAddress: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  paymentMethod: 'credit' | 'debit' | 'cash';
+};
+
+type CoffeeDetailFromBackend = {
+  id: string;
+  nome: string;
+  descricao: string;
+  tag: string[];
+  preco: string;
+  image?: string;
+  date_create: string;
+};
+
+type CartCoffeeItem = CoffeeDetailFromBackend & {
+  quantity: number;
+  title: string;
+  description: string;
+};
 
 const newOrder = z.object({
   cep: z.number({ invalid_type_error: 'Informe o CEP' }),
@@ -55,11 +72,11 @@ const newOrder = z.object({
   paymentMethod: z.enum(['credit', 'debit', 'cash'], {
     invalid_type_error: 'Informe um método de pagamento',
   }),
-})
+});
 
-export type OrderInfo = z.infer<typeof newOrder>
+export type OrderInfo = z.infer<typeof newOrder>;
 
-const shippingPrice = 3.5
+const shippingPrice = 3.5;
 
 export function Cart() {
   const {
@@ -68,24 +85,56 @@ export function Cart() {
     incrementItemQuantity,
     decrementItemQuantity,
     removeItem,
-  } = useCart()
+  } = useCart();
 
-  const coffeesInCart = cart.map((item) => {
-    const coffeeInfo = coffees.find((coffee) => coffee.id === item.id)
+  const [coffeesInCartWithDetails, setCoffeesInCartWithDetails] = useState<CartCoffeeItem[]>([]);
+  const [loadingCartDetails, setLoadingCartDetails] = useState(true);
+  const [errorLoadingCartDetails, setErrorLoadingCartDetails] = useState<string | null>(null);
 
-    if (!coffeeInfo) {
-      throw new Error('Invalid coffee.')
+  useEffect(() => {
+    async function fetchCoffeeDetails() {
+      setLoadingCartDetails(true);
+      setErrorLoadingCartDetails(null);
+      try {
+        if (cart.length === 0) {
+          setCoffeesInCartWithDetails([]);
+          return;
+        }
+
+        const detailedCoffeesPromises = cart.map(async (item) => {
+          const coffeeInfo = await getCoffeeById(item.id);
+          if (!coffeeInfo) {
+            throw new Error(`Café com ID "${item.id}" não encontrado na API.`);
+          }
+
+          return {
+            ...coffeeInfo,
+            quantity: item.quantity,
+            title: coffeeInfo.nome,
+            description: coffeeInfo.descricao,
+            tags: coffeeInfo.tag,
+            image: `/src/assets/coffees/${coffeeInfo.id}.png`
+          } as CartCoffeeItem;
+        });
+
+        const resolvedDetailedCoffees = await Promise.all(detailedCoffeesPromises);
+        setCoffeesInCartWithDetails(resolvedDetailedCoffees);
+      } catch (error: any) {
+        console.error("Erro ao carregar detalhes dos cafés do carrinho:", error);
+        setErrorLoadingCartDetails(error.message || "Erro ao carregar detalhes dos cafés.");
+        setCoffeesInCartWithDetails([]);
+      } finally {
+        setLoadingCartDetails(false);
+      }
     }
 
-    return {
-      ...coffeeInfo,
-      quantity: item.quantity,
-    }
-  })
+    fetchCoffeeDetails();
+  }, [cart]);
 
-  const totalItemsPrice = coffeesInCart.reduce((previousValue, currentItem) => {
-    return (previousValue += currentItem.price * currentItem.quantity)
-  }, 0)
+  const totalItemsPrice = coffeesInCartWithDetails.reduce((previousValue, currentItem) => {
+    const priceAsNumber = parseFloat(String(currentItem.preco).replace('R$', '').replace(',', '.'));
+    return (previousValue += priceAsNumber * currentItem.quantity);
+  }, 0);
 
   const {
     register,
@@ -94,29 +143,29 @@ export function Cart() {
     formState: { errors },
   } = useForm<FormInputs>({
     resolver: zodResolver(newOrder),
-  })
+  });
 
-  const selectedPaymentMethod = watch('paymentMethod')
+  const selectedPaymentMethod = watch('paymentMethod');
 
   function handleItemIncrement(itemId: string) {
-    incrementItemQuantity(itemId)
+    incrementItemQuantity(itemId);
   }
 
   function handleItemDecrement(itemId: string) {
-    decrementItemQuantity(itemId)
+    decrementItemQuantity(itemId);
   }
 
   function handleItemRemove(itemId: string) {
-    removeItem(itemId)
+    removeItem(itemId);
   }
 
   const handleOrderCheckout: SubmitHandler<FormInputs> = (data) => {
     if (cart.length === 0) {
-      return alert('É preciso ter pelo menos um item no carrinho')
+      return alert('É preciso ter pelo menos um item no carrinho');
     }
 
-    checkout(data)
-  }
+    checkout(data);
+  };
 
   return (
     <Container>
@@ -127,10 +176,8 @@ export function Cart() {
           <AddressContainer>
             <AddressHeading>
               <MapPin size={22} />
-
               <div>
                 <span>Endereço de Entrega</span>
-
                 <p>Informe o endereço onde deseja receber o seu pedido</p>
               </div>
             </AddressHeading>
@@ -143,21 +190,18 @@ export function Cart() {
                 error={errors.cep}
                 {...register('cep', { valueAsNumber: true })}
               />
-
               <TextInput
                 placeholder="Rua"
                 containerProps={{ style: { gridArea: 'street' } }}
                 error={errors.street}
                 {...register('street')}
               />
-
               <TextInput
                 placeholder="Número"
                 containerProps={{ style: { gridArea: 'number' } }}
                 error={errors.number}
                 {...register('number')}
               />
-
               <TextInput
                 placeholder="Complemento"
                 optional
@@ -165,21 +209,18 @@ export function Cart() {
                 error={errors.fullAddress}
                 {...register('fullAddress')}
               />
-
               <TextInput
                 placeholder="Bairro"
                 containerProps={{ style: { gridArea: 'neighborhood' } }}
                 error={errors.neighborhood}
                 {...register('neighborhood')}
               />
-
               <TextInput
                 placeholder="Cidade"
                 containerProps={{ style: { gridArea: 'city' } }}
                 error={errors.city}
                 {...register('city')}
               />
-
               <TextInput
                 placeholder="UF"
                 maxLength={2}
@@ -193,10 +234,8 @@ export function Cart() {
           <PaymentContainer>
             <PaymentHeading>
               <CurrencyDollar size={22} />
-
               <div>
                 <span>Pagamento</span>
-
                 <p>
                   O pagamento é feito na entrega. Escolha a forma que deseja
                   pagar
@@ -214,7 +253,6 @@ export function Cart() {
                   <CreditCard size={16} />
                   <span>Cartão de crédito</span>
                 </Radio>
-
                 <Radio
                   isSelected={selectedPaymentMethod === 'debit'}
                   {...register('paymentMethod')}
@@ -223,7 +261,6 @@ export function Cart() {
                   <Bank size={16} />
                   <span>Cartão de débito</span>
                 </Radio>
-
                 <Radio
                   isSelected={selectedPaymentMethod === 'cash'}
                   {...register('paymentMethod')}
@@ -248,36 +285,47 @@ export function Cart() {
         <h2>Cafés selecionados</h2>
 
         <CartTotal>
-          {coffeesInCart.map((coffee) => (
-            <Fragment key={coffee.id}>
-              <Coffee>
-                <div>
-                  <img src={coffee.image} alt={coffee.title} />
-
+          {loadingCartDetails ? (
+            <p>Carregando itens do carrinho...</p>
+          ) : errorLoadingCartDetails ? (
+            <p style={{ color: 'red' }}>{errorLoadingCartDetails}</p>
+          ) : coffeesInCartWithDetails.length === 0 ? (
+            <p>Seu carrinho está vazio!</p>
+          ) : (
+            coffeesInCartWithDetails.map((coffee) => (
+              <Fragment key={coffee.id}>
+                <Coffee>
                   <div>
-                    <span>{coffee.title}</span>
+                    <img src={coffee.image || '/src/assets/coffees/default_coffee.png'} alt={coffee.title} />
 
-                    <CoffeeInfo>
-                      <QuantityInput
-                        quantity={coffee.quantity}
-                        incrementQuantity={() => handleItemIncrement(coffee.id)}
-                        decrementQuantity={() => handleItemDecrement(coffee.id)}
-                      />
-
-                      <button onClick={() => handleItemRemove(coffee.id)}>
-                        <Trash />
-                        <span>Remover</span>
-                      </button>
-                    </CoffeeInfo>
+                    <div>
+                      <span>{coffee.title}</span>
+                      <CoffeeInfo>
+                        <QuantityInput
+                          quantity={coffee.quantity}
+                          incrementQuantity={() => handleItemIncrement(coffee.id)}
+                          decrementQuantity={() => handleItemDecrement(coffee.id)}
+                        />
+                        <button onClick={() => handleItemRemove(coffee.id)}>
+                          <Trash />
+                          <span>Remover</span>
+                        </button>
+                      </CoffeeInfo>
+                    </div>
                   </div>
-                </div>
 
-                <aside>R$ {coffee.price?.toFixed(2)}</aside>
-              </Coffee>
-
-              <span />
-            </Fragment>
-          ))}
+                  <aside>
+                    R$ {
+                      parseFloat(
+                        String(coffee.preco || '0').replace('R$', '').replace(',', '.')
+                      )?.toFixed(2).replace('.', ',')
+                    }
+                  </aside>
+                </Coffee>
+                <span />
+              </Fragment>
+            ))
+          )}
 
           <CartTotalInfo>
             <div>
@@ -317,5 +365,5 @@ export function Cart() {
         </CartTotal>
       </InfoContainer>
     </Container>
-  )
+  );
 }

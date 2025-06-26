@@ -21,7 +21,9 @@ type Props = {
     title: string
     description: string
     tags: string[]
-    price: number
+    // ATENÇÃO: Aqui definimos que 'price' virá como string do backend
+    // Mude de 'number' para 'string' para corresponder ao backend
+    price: string 
     image: string
   }
 }
@@ -64,6 +66,14 @@ export function Card({ coffee }: Props) {
     }
   }, [isItemAdded])
 
+  // --- MUDANÇA AQUI: Parsear e formatar o preço antes de renderizar ---
+  const rawPriceString = String(coffee.price || '0').replace('R$', '').replace(',', '.').trim();
+  const parsedPrice = parseFloat(rawPriceString);
+  
+  // Garante que o preço formatado seja "0,00" se não for um número válido
+  const formattedPrice = isNaN(parsedPrice) ? '0,00' : parsedPrice.toFixed(2).replace('.', ',');
+  // --- FIM DA MUDANÇA ---
+
   return (
     <Container>
       <CoffeeImg src={coffee.image} alt={coffee.title} />
@@ -81,7 +91,8 @@ export function Card({ coffee }: Props) {
       <Control>
         <Price>
           <span>R$</span>
-          <span>{coffee.price.toFixed(2)}</span>
+          {/* Use o preço formatado aqui */}
+          <span>{formattedPrice}</span> 
         </Price>
 
         <Order $itemAdded={isItemAdded}>
