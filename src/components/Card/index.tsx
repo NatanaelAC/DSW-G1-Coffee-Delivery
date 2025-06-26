@@ -1,9 +1,9 @@
-import { CheckFat, ShoppingCart } from '@phosphor-icons/react'
-import { useTheme } from 'styled-components'
-import { useEffect, useState } from 'react'
+import { CheckFat, ShoppingCart } from '@phosphor-icons/react';
+import { useTheme } from 'styled-components';
+import { useEffect, useState } from 'react';
 
-import { QuantityInput } from '../Form/QuantityInput'
-import { useCart } from '../../hooks/useCart'
+import { QuantityInput } from '../Form/QuantityInput';
+import { useCart } from '../../hooks/useCart';
 import {
   CoffeeImg,
   Container,
@@ -13,73 +13,75 @@ import {
   Price,
   Tags,
   Title,
-} from './styles'
+} from './styles';
 
 type Props = {
   coffee: {
-    id: string
-    title: string
-    description: string
-    tags: string[]
-    // ATENÇÃO: Aqui definimos que 'price' virá como string do backend
-    // Mude de 'number' para 'string' para corresponder ao backend
-    price: number 
-    image: string
-  }
-}
+    id: string;
+    title: string;
+    description: string;
+    tags: string[];
+    price: number; 
+    image: string;
+  };
+};
 
 export function Card({ coffee }: Props) {
-  const [quantity, setQuantity] = useState(1)
-  const [isItemAdded, setIsItemAdded] = useState(false)
-  const theme = useTheme()
-  const { addItem } = useCart()
+  const [quantity, setQuantity] = useState(1);
+  const [isItemAdded, setIsItemAdded] = useState(false);
+  const theme = useTheme();
+  const { addItem } = useCart();
 
   function incrementQuantity() {
-    setQuantity((state) => state + 1)
+    setQuantity((state) => state + 1);
   }
 
   function decrementQuantity() {
     if (quantity > 1) {
-      setQuantity((state) => state - 1)
+      setQuantity((state) => state - 1);
     }
   }
 
   function handleAddItem() {
-    addItem({ id: coffee.id, quantity })
-    setIsItemAdded(true)
-    setQuantity(1)
+    addItem({ id: coffee.id, quantity });
+    setIsItemAdded(true);
+    setQuantity(1);
   }
 
   useEffect(() => {
-    let timeout: number
+    let timeout: number | undefined;
 
     if (isItemAdded) {
       timeout = setTimeout(() => {
-        setIsItemAdded(false)
-      }, 1000)
+        setIsItemAdded(false);
+      }, 1000);
     }
 
     return () => {
       if (timeout) {
-        clearTimeout(timeout)
+        clearTimeout(timeout);
       }
-    }
-  }, [isItemAdded])
+    };
+  }, [isItemAdded]);
 
-  // --- MUDANÇA AQUI: Parsear e formatar o preço antes de renderizar ---
-  const rawPriceString = String(coffee.price || '0').replace('R$', '').replace(',', '.').trim();
+  const safeTags = Array.isArray(coffee.tags) ? coffee.tags : [];
+
+  const rawPriceString = String(coffee.price || '0')
+    .replace('R$', '')
+    .replace(',', '.')
+    .trim();
   const parsedPrice = parseFloat(rawPriceString);
-  
-  // Garante que o preço formatado seja "0,00" se não for um número válido
-  const formattedPrice = isNaN(parsedPrice) ? '0,00' : parsedPrice.toFixed(2).replace('.', ',');
-  // --- FIM DA MUDANÇA ---
+
+  const formattedPrice = isNaN(parsedPrice)
+    ? '0,00'
+    : parsedPrice.toFixed(2).replace('.', ',');
 
   return (
     <Container>
-      <CoffeeImg src={coffee.image} alt={coffee.title} />
+      <CoffeeImg src={coffee.image || '/src/assets/coffees/default_coffee.png'} alt={coffee.title} />
 
       <Tags>
-        {coffee.tags.map((tag) => (
+        {safeTags.map((tag) => (
           <span key={tag}>{tag}</span>
         ))}
       </Tags>
@@ -91,8 +93,7 @@ export function Card({ coffee }: Props) {
       <Control>
         <Price>
           <span>R$</span>
-          {/* Use o preço formatado aqui */}
-          <span>{formattedPrice}</span> 
+          <span>{formattedPrice}</span>
         </Price>
 
         <Order $itemAdded={isItemAdded}>
@@ -116,5 +117,5 @@ export function Card({ coffee }: Props) {
         </Order>
       </Control>
     </Container>
-  )
+  );
 }

@@ -98,27 +98,36 @@ export function Cart() {
       try {
         if (cart.length === 0) {
           setCoffeesInCartWithDetails([]);
+          setLoadingCartDetails(false);
           return;
         }
 
         const detailedCoffeesPromises = cart.map(async (item) => {
           const coffeeInfo = await getCoffeeById(item.id);
+          // Adiciona uma verificação extra para garantir que coffeeInfo não é null ou undefined
           if (!coffeeInfo) {
-            throw new Error(`Café com ID "${item.id}" não encontrado na API.`);
+            console.warn(`Café com ID "${item.id}" não encontrado na API ou retorno inválido.`);
+            // Você pode decidir pular este item ou lançar um erro
+            return null; // Retorna null para que possa ser filtrado depois
           }
+
+          // Garante que 'tag' seja sempre um array
+          const safeTags = Array.isArray(coffeeInfo.tag) ? coffeeInfo.tag : [];
 
           return {
             ...coffeeInfo,
             quantity: item.quantity,
             title: coffeeInfo.nome,
             description: coffeeInfo.descricao,
-            tags: coffeeInfo.tag,
-            image: `/src/assets/coffees/${coffeeInfo.id}.png`
+            tag: safeTags,
+            // Usa um fallback de imagem se coffeeInfo.image for undefined/null
+            image: coffeeInfo.image || `/src/assets/coffees/${coffeeInfo.id}.png`
           } as CartCoffeeItem;
-        });
+        }).filter(Boolean); // Filtra quaisquer itens 'null' resultantes de cafés não encontrados
 
         const resolvedDetailedCoffees = await Promise.all(detailedCoffeesPromises);
-        setCoffeesInCartWithDetails(resolvedDetailedCoffees);
+        // Garante que o resultado final é um array de CartCoffeeItem, removendo os nulos
+        setCoffeesInCartWithDetails(resolvedDetailedCoffees.filter((coffee): coffee is CartCoffeeItem => coffee !== null));
       } catch (error: any) {
         console.error("Erro ao carregar detalhes dos cafés do carrinho:", error);
         setErrorLoadingCartDetails(error.message || "Erro ao carregar detalhes dos cafés.");
@@ -132,8 +141,11 @@ export function Cart() {
   }, [cart]);
 
   const totalItemsPrice = coffeesInCartWithDetails.reduce((previousValue, currentItem) => {
-    const priceAsNumber = parseFloat(String(currentItem.preco).replace('R$', '').replace(',', '.'));
-    return (previousValue += priceAsNumber * currentItem.quantity);
+    // Garante que currentItem.preco é uma string e tem um valor padrão '0' se for nulo/indefinido
+    const priceAsString = String(currentItem.preco || '0');
+    const priceAsNumber = parseFloat(priceAsString.replace('R$', '').replace(',', '.'));
+    // Adiciona uma verificação para garantir que priceAsNumber é um número válido
+    return (previousValue += (isNaN(priceAsNumber) ? 0 : priceAsNumber) * currentItem.quantity);
   }, 0);
 
   const {
@@ -161,7 +173,8 @@ export function Cart() {
 
   const handleOrderCheckout: SubmitHandler<FormInputs> = (data) => {
     if (cart.length === 0) {
-      return alert('É preciso ter pelo menos um item no carrinho');
+      alert('É preciso ter pelo menos um item no carrinho');
+      return; // Adicionado 'return' para parar a execução após o alert
     }
 
     checkout(data);
@@ -296,6 +309,7 @@ export function Cart() {
               <Fragment key={coffee.id}>
                 <Coffee>
                   <div>
+                    {/* Imagem do café: usa a imagem fornecida ou um placeholder */}
                     <img src={coffee.image || '/src/assets/coffees/default_coffee.png'} alt={coffee.title} />
 
                     <div>
@@ -315,10 +329,11 @@ export function Cart() {
                   </div>
 
                   <aside>
+                    {/* Preço do café: formatação robusta para evitar NaN ou undefined */}
                     R$ {
                       parseFloat(
                         String(coffee.preco || '0').replace('R$', '').replace(',', '.')
-                      )?.toFixed(2).replace('.', ',')
+                      ).toFixed(2).replace('.', ',')
                     }
                   </aside>
                 </Coffee>
